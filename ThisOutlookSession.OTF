@@ -1,0 +1,340 @@
+' Breaker DEC 2019 ITEMADD
+' May 1 2019 - included a suffix on weblinks ?web=1 to encourage OneDrive to open online rather that download
+' This Outlook Session
+ 
+Private WithEvents deletedItems As Outlook.Items
+Private WithEvents sentItems As Outlook.Items
+Private WithEvents mainInboxItems As Outlook.Items
+ 
+Private Sub Application_Startup()
+ 
+    Dim olApp As Outlook.Application
+    Dim objNS As Outlook.NameSpace
+    Set olApp = Outlook.Application
+    Set objNS = olApp.GetNamespace("MAPI")
+ 
+    Set sentItems = objNS.GetDefaultFolder(olFolderSentMail).Items
+    Set deletedItems = objNS.GetDefaultFolder(olFolderDeletedItems).Items
+    Set mainInboxItems = objNS.GetDefaultFolder(olFolderInbox).Items
+    'assumes your "AssignNumber" folder is a subfolder of the main inbox
+    'otherwise you can nest Folders("myArchive").Folders("AssignNumber).items etc
+    'Set objWatchFolder = objNS.GetDefaultFolder(olFolderInbox).Folders("Folder name")
+ 
+ 
+    Dim outlookApp As Outlook.Application
+    Dim objectNS As Object
+    Set outlookApp = Outlook.Application
+    Set objectNS = outlookApp.GetNamespace("MAPI")
+    Set inboxItems = objectNS.GetDefaultFolder(olFolderInbox).Items
+ 
+End Sub
+Sub mainInboxItems_ItemAdd(ByVal Item As Object)
+ 
+Dim objOL As Outlook.Application
+Dim objMsg As Outlook.MailItem 'Object
+Dim objAttachments As Outlook.Attachments
+Dim objSelection As Outlook.Selection
+Dim lngCount As Long
+Dim Msg As Outlook.MailItem
+ 
+If TypeName(Item) = "MailItem" Then
+ 
+Set objAttachments = Item.Attachments
+lngCount = objAttachments.Count
+If lngCount > 0 Then
+ 
+'MsgBox "Call the Breaker - Item Inbox Add"
+Breaker Item
+ 
+End If
+End If
+ 
+End Sub
+Sub sentItems_ItemAdd(ByVal Item As Object)
+ 
+Dim objOL As Outlook.Application
+Dim objMsg As Outlook.MailItem 'Object
+Dim objAttachments As Outlook.Attachments
+Dim objSelection As Outlook.Selection
+Dim lngCount As Long
+Dim Msg As Outlook.MailItem
+ 
+If TypeName(Item) = "MailItem" Then
+ 
+Set objAttachments = Item.Attachments
+lngCount = objAttachments.Count
+If lngCount > 0 Then
+ 
+'MsgBox "Call the Breaker - Item Sent Add"
+Breaker Item
+ 
+End If
+End If
+ 
+End Sub
+Function AlphaNumericOnly(strSource As String) As String
+Dim i As Integer
+Dim strResult As String
+ 
+For i = 1 To Len(strSource)
+Select Case Asc(Mid(strSource, i, 1))
+Case 32, 34, 45, 46, 48 To 57, 65 To 90, 95, 97 To 122: 'include 32 if you want to include space
+strResult = strResult & Mid(strSource, i, 1)
+End Select
+Next
+AlphaNumericOnly = strResult
+End Function
+Function formatSize(size As Long) As String
+Dim val As Double, newVal As Double
+Dim unit As String
+ 
+val = size
+unit = "bytes"
+ 
+newVal = Round(val / 1024, 1)
+If newVal > 0 Then
+val = newVal
+unit = "KB"
+End If
+newVal = Round(val / 1024, 1)
+If newVal > 0 Then
+val = newVal
+unit = "MB"
+End If
+newVal = Round(val / 1024, 1)
+If newVal > 0 Then
+val = newVal
+unit = "GB"
+End If
+ 
+formatSize = val & " " & unit
+End Function
+ 
+Sub Breaker(ByVal Item As Object)
+ 
+'MsgBox "Got this far - into the Breaker"
+' ?web=1
+ 
+Dim objOL As Outlook.Application
+Dim objMsg As Outlook.MailItem 'Object
+Dim objAttachments As Outlook.Attachments
+Dim objSelection As Outlook.Selection
+Dim i As Long
+Dim lngCount As Long
+Dim docCount As Long
+Dim OAFileName As String
+Dim strFile As String
+Dim strNameFile As String
+Dim strWebTrue As String
+ 
+Dim strSizeFile As String
+Dim typeFile As String
+Dim strFolderpath As String
+Dim FileSuccess As Boolean
+Dim strDeletedFiles As String
+Dim strHTML As String
+Dim quote As String
+quote = Chr$(34)
+ 
+Dim br As String
+Dim td1 As String
+Dim td2 As String
+Dim tr1 As String
+Dim tr2 As String
+Dim table1 As String
+Dim table2 As String
+Dim firstROW As String
+Dim lastROW As String
+Dim footROW As String
+
+ 
+br = "<br>"
+td1 = "<td>"
+td2 = "</td>"
+tr1 = "<tr>"
+tr2 = "</tr>"
+table1 = "<table cellspacing=0 cellpadding=4 border=1 bordercolor=#F8F8BC bgcolor=#FFF8DC>"
+table2 = "</table>"
+' firstROW = tr1 & td1 & "Document" & td2 & td1 & "Web" & td2 & td1 & "Size" & td2 & tr2
+' use variant below to columns Local and Web, commment out the one above.
+firstROW = tr1 & td1 & "Document" & td2 & td1 & "Local" & td2 & td1 & "Web" & td2 & td1 & "Size" & td2 & tr2
+ 
+ 
+ 
+On Error GoTo ErrorHandler
+
+Dim Msg As Outlook.MailItem
+ 
+If TypeName(Item) = "MailItem" Then
+ 
+'-----
+' Get the path to your My Documents folder
+' need to make year a variable so not adjustment needed to folder path
+'
+strFolderpath = "C:\Users\J30957\OneDrive - Evonik Industries AG\OLAttachments" & "-" & Format(Now, "yyyy") & "\"
+strWebpath = "https://evonik-my.sharepoint.com/:f:/r/personal/j30957_evonik_com/Documents/" & "OLAttachments" & "-" & Format(Now, "yyyy") & "/"
+ 
+' MsgBox strFolderpath
+' Folder exists, if not make it
+If Dir(strFolderpath, vbDirectory) = "" Then MkDir strFolderpath
+ 
+ 
+' need to fix template for plain text, it breaks the links due to spaces
+' need better use of ErrorHandler
+ 
+ 
+On Error Resume Next
+ 
+ 
+Set objAttachments = Item.Attachments
+ 
+'how many of attachments total
+lngCount = objAttachments.Count
+ 
+' Item.Categories = "OLA;" & Item.Categories
+ 
+If lngCount > 0 Then
+docCount = 0
+ 
+''MsgBox "Many attachments"
+' We need to use a count down loop for removing items
+' from a collection. Otherwise, the loop counter gets
+' confused and only every other item is removed
+' if there are attachments left of types we don't save then we can hold that value
+ 
+ 
+For i = lngCount To 1 Step -1
+ 
+' Get the file name.
+' This code looks at the last 4 characters in a filename
+typeFile = LCase$(Right$(objAttachments.Item(i).FileName, 4))
+ 
+Select Case typeFile
+' Add additional file types below, don't forget as last four characters
+Case ".xls", "xlsx", ".doc", "docx", ".ppt", "pptx", ".pdf", ".one", ".vsd", ".csv", ".txt", "pptm", ".htm", ".mp4"
+strWebTrue = ""
+    Select Case typeFile
+    ' if this is an office document, append a suffix to the weblink
+    Case ".xls", "xlsx", ".doc", "docx", ".ppt", "pptx", "pptm"
+     strWebTrue = "?web=1"
+     End Select
+ 
+docCount = docCount + 1
+ 
+' Store the file name as Alpha Numeric Only
+OAFileName = AlphaNumericOnly(objAttachments.Item(i).FileName)
+ 
+' Add a prefix to the Alpha Numeric File name
+strFile = Format(Now, "mmddnnss") & "_" & OAFileName
+ 
+' Add a human readable version with size specifed
+strNameFile = OAFileName
+strSizeFile = formatSize(objAttachments.Item(i).size)
+ 
+' Combine Alpha file name with the path to the folder
+strWeb = strWebpath & strFile & strWebTrue
+strFile = strFolderpath & strFile
+ 
+' Save the attachment as a file
+objAttachments.Item(i).SaveAsFile strFile
+FileSuccess = True
+' Verify that the file is actually now local prior ot deleting
+' error traps to assure we dno't delete the attahment without it being saved
+' Delete the attachment
+' don't do this if there are errors
+ 
+'If Dir(strFile, vbDirectory) <> "" Then
+objAttachments.Item(i).Delete
+''MsgBox "File Success and Deleted"
+'FileSuccess = True
+'Else
+'FileSuccess = False
+'End If
+ 
+'write the save as path to a string to add to the message
+'check for html and use html tags in link
+'<table><tr><th></th></tr></table>
+ 
+If Item.BodyFormat <> olFormatHTML Then
+strDeletedFiles = strDeletedFiles & vbCrLf & strNameFile & quote & strWeb & quote & ""
+'strDeletedFiles = strDeletedFiles & vbCrLf & strNameFile & quote & strWeb & quote & ""
+Else
+' strDeletedFiles = strDeletedFiles & tr1 & td1 & strNameFile & td2 & td1 & "<a href='" & strWeb & "'>link</a>" & td2 & td1 & strSizeFile & td2 & tr2
+' use variant below to columns Local and Web, commment out the one above.
+strDeletedFiles = strDeletedFiles & tr1 & td1 & strNameFile & td2 & td1 & "<a href='file://" & strFile & "'>link</a>" & td2 & td1 & "<a href='" & strWeb & "'>link</a>" & td2 & td1 & strSizeFile & td2 & tr2
+End If
+ 
+'clear and get ready for next attachment
+ 
+strFile = ""
+strNameFile = ""
+OAFileName = ""
+ 
+End Select
+ 
+Next i
+ 
+ 
+If docCount > 0 Then
+' Adds the filename string to the message body and save it
+' Check for HTML body
+footROW = (lngCount - docCount) & " file(s) remain attached."
+lastROW = tr1 & td1 & footROW & td2 & tr2
+ 
+If Item.BodyFormat <> olFormatHTML Then
+Item.Body = strDeletedFiles & vbCrLf & vbCrLf & Item.Body
+Else
+Item.HTMLBody = table1 & firstROW & strDeletedFiles & table2 & "<br>" & "<br>" & Item.HTMLBody
+End If
+ 
+ 
+If docCount > 0 Then
+Item.Categories = "Files Removed;" & Item.Categories
+Else
+Item.Categories = "Files Errors;" & Item.Categories
+End If
+ 
+ 
+ 
+Item.Save
+ 
+'sets the attachment path to nothing before it moves on to the next message.
+
+strDeletedFiles = ""
+ 
+End If
+ 
+End If
+ 
+End If
+ 
+ 
+ProgramExit:
+Exit Sub
+ErrorHandler:
+'MsgBox Err.Number & " - " & Err.Description
+Resume ProgramExit
+End Sub
+
+
+
+
+Private Sub inboxItems_ItemAdd(ByVal Item As Object)
+    Dim email As Outlook.MailItem
+    Dim attachment As Outlook.attachment
+    Dim attachmentList As String
+    
+    If TypeOf Item Is Outlook.MailItem Then
+        Set email = Item
+        
+        If email.Attachments.Count > 0 Then
+            For Each attachment In email.Attachments
+                attachmentList = attachmentList & vbCrLf & attachment.DisplayName
+            Next attachment
+            
+            MsgBox "New mail with attachment:" & vbCrLf & attachmentList, vbInformation, "New Mail Received"
+        End If
+    End If
+End Sub
+
+
